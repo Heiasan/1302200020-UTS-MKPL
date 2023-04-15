@@ -12,86 +12,105 @@ public class Employee {
 	private String lastName;
 	private String idNumber;
 	private String address;
-
-	private int yearJoined;
-	private int monthJoined;
-	private int dayJoined;
-	private int monthWorkingInYear;
-
-	private boolean isForeigner;
-	private boolean gender; // true = Laki-laki, false = Perempuan
-
 	private int monthlySalary;
 	private int otherMonthlyIncome;
 	private int annualDeductible;
-
+	private boolean isForeigner;
+	private boolean isMale;
+	private LocalDate joinDate;
 	private String spouseName;
 	private String spouseIdNumber;
-
-	private List<String> childNames;
-	private List<String> childIdNumbers;
+	private List<Child> children;
 
 	public Employee(String employeeId, String firstName, String lastName, String idNumber, String address,
-			int yearJoined, int monthJoined, int dayJoined, boolean isForeigner, boolean gender) {
+			LocalDate joinDate, boolean isForeigner, boolean isMale) {
 		this.employeeId = employeeId;
 		this.firstName = firstName;
 		this.lastName = lastName;
 		this.idNumber = idNumber;
 		this.address = address;
-		this.yearJoined = yearJoined;
-		this.monthJoined = monthJoined;
-		this.dayJoined = dayJoined;
+		this.joinDate = joinDate;
 		this.isForeigner = isForeigner;
-		this.gender = gender;
-
-		childNames = new LinkedList<String>();
-		childIdNumbers = new LinkedList<String>();
+		this.isMale = isMale;
+		this.children = new LinkedList<Child>();
 	}
 
-	/**
-	 * Fungsi untuk menentukan gaji bulanan pegawai berdasarkan grade kepegawaiannya
-	 * (grade 1: 3.000.000 per bulan, grade 2: 5.000.000 per bulan, grade 3:
-	 * 7.000.000 per bulan)
-	 * Jika pegawai adalah warga negara asing gaji bulanan diperbesar sebanyak 50%
-	 */
-
 	public void setMonthlySalary(int grade) {
-		if (grade == 1) {
-			monthlySalary = 3000000;
-			if (isForeigner) {
-				monthlySalary = (int) (3000000 * 1.5);
-			}
-		} else if (grade == 2) {
-			monthlySalary = 5000000;
-			if (isForeigner) {
-				monthlySalary = (int) (3000000 * 1.5);
-			}
-		} else if (grade == 3) {
-			monthlySalary = 7000000;
-			if (isForeigner) {
-				monthlySalary = (int) (3000000 * 1.5);
-			}
+		switch (grade) {
+			case 1:
+				this.monthlySalary = 3000000;
+				break;
+			case 2:
+				this.monthlySalary = 5000000;
+				break;
+			case 3:
+				this.monthlySalary = 7000000;
+				break;
+			default:
+				throw new IllegalArgumentException("Invalid grade: " + grade);
+		}
+
+		if (isForeigner) {
+			this.monthlySalary *= 1.5;
 		}
 	}
 
+	public void setAnnualDeductible(int annualDeductible) {
+		this.annualDeductible = annualDeductible;
+	}
+
+	public void setOtherMonthlyIncome(int otherMonthlyIncome) {
+		this.otherMonthlyIncome = otherMonthlyIncome;
+	}
+
+	public void setSpouse(String spouseName, String spouseIdNumber) {
+		this.spouseName = spouseName;
+		this.spouseIdNumber = spouseIdNumber;
+	}
+
+	public void addChild(String childName, String childIdNumber) {
+		Child child = new Child(childName, childIdNumber);
+		this.children.add(child);
+	}
+
 	public int getAnnualIncomeTax() {
-		int monthWorkingInYear = calculateMonthWorkingInYear();
-		return TaxFunction.calculateTax(monthlySalary, otherMonthlyIncome, monthWorkingInYear, annualDeductible,
-				isSpouseEmpty(), countChild());
+		int workingMonthsInYear = calculateWorkingMonthsInYear(joinDate);
+		int numberOfChildren = children.size();
+		boolean isMarried = spouseIdNumber != null;
+
+		return TaxFunction.calculateTax(monthlySalary, otherMonthlyIncome, workingMonthsInYear, annualDeductible,
+				!isMarried, numberOfChildren);
 	}
 
-	private int calculateMonthWorkingInYear() {
-		LocalDate date = LocalDate.now();
-		int monthJoinedInYear = LocalDate.of(yearJoined, Month.of(monthJoined), DayOfMonth.of(dayJoined))
-				.getMonthValue();
-		return (date.getYear() == yearJoined) ? (date.getMonthValue() - monthJoinedInYear) : 12;
+	private int calculateWorkingMonthsInYear(LocalDate joinDate) {
+		LocalDate currentDate = LocalDate.now();
+
+		if (currentDate.isBefore(joinDate)) {
+			throw new IllegalArgumentException("Join date cannot be in the future");
+		}
+
+		if (currentDate.getYear() == joinDate.getYear()) {
+			return currentDate.getMonthValue() - joinDate.getMonthValue() + 1;
+		} else {
+			return (12 - joinDate.getMonthValue() + 1) + (currentDate.getMonthValue() - 1);
+		}
 	}
 
-	private boolean isSpouseEmpty() {
-		return spouseIdNumber.equals("");
-	}
+	private class Child {
+		private String name;
+		private String idNumber;
 
-	private int countChild() {
-		return childIdNumbers.size();
+		public Child(String name, String idNumber) {
+			this.name = name;
+			this.idNumber = idNumber;
+		}
+
+		public String getName() {
+			return name;
+		}
+
+		public String getIdNumber() {
+			return idNumber;
+		}
 	}
 }
